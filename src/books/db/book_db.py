@@ -1,9 +1,9 @@
 #
 #  Import LIBRARIES
 #  Import FILES
-from models.bk_models import Book
+from ..models.bk_models import Book
 
-#
+# In the original text this file is called book_data.py and is inside src/books which also contain a __init__.py
 
 books: list[Book] = [
     Book(
