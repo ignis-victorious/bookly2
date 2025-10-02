@@ -1,14 +1,17 @@
 #
 #  Import LIBRARIES
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, status
+from fastapi.exceptions import HTTPException
 
 #  Import FILES
-from models.bk_models import BookCreate
+# from models.bk_models import BookCreate
+from db.book_db import books
+from models.bk_models import Book, BookUpdate
 
 #
 
 
-app = FastAPI()
+app: FastAPI = FastAPI()
 
 
 @app.get(path="/")
@@ -16,57 +19,54 @@ async def read_root() -> dict[str, str]:
     return {"message": "Hello world!"}
 
 
-#  Query with Path Parameters
-# @app.get(path="/greet/{name}")
-# async def greet_name(name: str) -> dict[str, str]:
-#     return {"message": f"Hello {name}"}
+# Return all books - without Pydantic model
+# @app.get(path="/books")
+# async def get_all_books() -> list[dict[str, int | str]]:
+#     return books
+# Return all book but with Pydantic model
+@app.get(path="/books", response_model=list[Book])
+async def get_all_books() -> list[Book]:
+    return books
 
 
-#  Query with Query Parameters
-# @app.get(path="/greet/")
-# async def greet_name(name: str) -> dict[str, str]:
-#     return {"message": f"Hello {name}"}
+@app.post(path="/books", status_code=status.HTTP_201_CREATED)
+async def create_a_book(book_data: Book) -> Book:
+    new_book: Book = book_data
+    # new_book: Book = book_data.model_dump # Use if books os still a list of Dict model_dump transform into a dict
+    books.append(new_book)
+    return new_book
 
 
-#  Mixed query Path + Query Parameters
-# @app.get(path="/greet/{name}")
-# async def greet_name(name: str, age: int) -> dict[str, str]:
-# return {"message": f"Hello {name}, you are {age} years old"}
+@app.get(path="/book/{book_id}")
+async def get_book(book_id: int) -> Book | None:
+    for book in books:
+        if book_id == book.id:
+            return book
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
 
-#  Query default Parameters
-@app.get(path="/greet")
-async def greet_name(name: str = "User", age: int = 0) -> dict[str, str]:
-    return {"message": f"Hello {name}, you are {age} years old"}
+@app.patch(path="/book/{book_id}")
+async def update_book(book_id: int, book_update_data: BookUpdate):
+    for book in books:
+        if book.id == book_id:
+            book.title = book_update_data.title
+            book.publisher = book_update_data.publisher
+            book.page_count = book_update_data.page_count
+            book.language = book_update_data.language
+            return book
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
 
-#  Request
-@app.post(path="/create_book")
-async def create_book(book_data: BookCreate) -> dict[str, str]:
-    return {"title": book_data.title, "author": book_data.author}
+@app.delete(path="/book/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_book(book_id: int) -> Book:
+    for book in books:
+        if book.id == book_id:
+            books.remove(book)
+            return book
 
-
-# {
-#     "title": "Think Python",
-#     "author": "Allen B. Downey",,
-# }
-
-
-#  HEADER
-@app.get(path="/get_headers", status_code=500)
-# @app.get(path="/get_headers", status_code=200)
-async def get_headers(
-    accept: str = Header(None),
-    content_type: str = Header(None),
-    user_agent: str = Header(None),
-    host: str = Header(None),
-):
-    request_headers = {}
-    request_headers["Accept"] = accept
-    request_headers["Content-Type"] = content_type
-    request_headers["User-Agent"] = user_agent
-    request_headers["Host"] = user_agent
-    return request_headers
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
 
 #  __________________________
